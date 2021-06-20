@@ -1,0 +1,131 @@
+---
+title: 'Übung 03: Pandemieausbruch'
+author: "Tobias Blesgen und Leonardo Thome"
+date: "09.06.2021"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+header-includes: 
+ - \usepackage{amssymb}
+ - \usepackage{amsmath}
+ - \usepackage[ngerman]{babel}
+ - \bibliographystyle{unsrtnat}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Let'S go!
+
+```{Rcpp}
+#include <Rcpp.h>
+#include <stdlib.h>
+
+using namespace Rcpp;
+
+double pi = 3.14159;
+std::complex<double> I = 1i;
+
+// Generiere die w Faktoren
+std::vector<std::complex<double>> wInit(int n){
+  std::vector<std::complex<double>> W(n);
+  for (int a = 0; a < n; a++)
+    {
+        W[a]= (-2.*pi*I*(double)a)/((double)n);
+    }
+  return W;
+}
+
+// Funktion zum Umsortieren der verdrehten Terme
+void fftResort(const int n, int* k){
+    int l = 0, m;
+    for (int i = 0; i <= n-2; i++)
+    {
+        k[i] = l;
+        m = n/2;
+        while (m <= l)
+        {
+            l -= m;
+            m /= 2;
+        }
+        l += m;
+    }
+    k[n-1] = n-1;
+}
+
+// Fast Fourier Transform - Funktion (nimmt die z_i und gibt die g_i unsortiert aus)
+std::vector<std::complex<double>> fft (std::vector<std::complex<double>> z, const int r){
+    const int n = pow(2,r);
+    int m = n/2;
+    int K = 1;
+    std::vector<std::complex<double>> w = wInit(n);
+    int a, b;
+    
+    for (int i = 0; i < r; i++)
+    {
+        for (int k = 0; k < K; k++)
+        {
+            for (int j = 0; j < m; j++)
+            {
+                a = 2*k*m +j;
+                b = a + m;
+                z[a] += z[b];
+                z[b] = w[K*j]*(z[a] - 2.0*z[b]);
+            }
+        }
+        m /= 2;
+        K *= 2;
+    }  
+    int index[n];
+    fftResort(n, index);
+    for (int i = 0; i < n; i++)
+    {
+        z[i]= z[index[i]] / sqrt(n);
+    }
+    Rprintf("%f\n", real(z[0]));
+    return z;
+}
+
+// FFT Aufruf
+//[[Rcpp::export]]
+Rcpp::List fastFourier(int r){
+    int n = pow(2,r);
+    std::vector<std::complex<double>> a(n);
+    for (int i = 0; i < n; i++)
+    {
+        a[i] = cos(I*2.0*pi/(double)n);
+    }
+    a = fft(a,r);
+    Rprintf("%f\n", real(a[0]));
+    std::vector<std::complex<double>> re(n);
+    std::vector<std::complex<double>> im(n);
+    for (int i = 0; i < n; i++)
+    {
+        re[i] = real(a[i]);
+        im[i] = imag(a[i]);
+    }
+    return List::create(Named("real") = re, Named("imag") = im);
+}
+```
+
+```{r}
+ff1 = fastFourier(4)
+plot(ff1$real,"l")
+```
+
+```{Rcpp}
+#include<Rcpp.h>
+/*
+#include<vector>
+#include<algorithm>
+#include<complex>
+
+using namespace Rcpp;
+*/
+
+double pi = 3.14159;
+
+```
+
